@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flow-DPPO: Divergence Proximal Policy Optimization for Flow Matching Models</title>
+    <meta name="description" content="Flow-DPPO replaces noisy ratio clipping with exact KL divergence computation for superior alignment of flow matching models. NeurIPS 2026.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true},{left: '$', right: '$', display: false}]});"></script>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ==================== SECTION 1: HERO ==================== -->
+<section id="hero" class="hero">
+    <div class="hero-bg"></div>
+    <div class="container">
+        <h1 class="title">
+            <span class="title-gradient">Flow-DPPO</span><span class="title-colon">:</span><br>
+            <span class="title-sub">Divergence Proximal Policy Optimization<br>for Flow Matching Models</span>
+        </h1>
+
+        <div class="authors">
+            <span class="author">Bowen Ping<sup>1,2,*</sup></span>
+            <span class="author">Xiangxin Zhou<sup>2,*,&para;</sup></span>
+            <span class="author">Penghui Qi<sup>3</sup></span>
+            <span class="author">Minnan Luo<sup>1,&Dagger;</sup></span>
+            <span class="author">Liefeng Bo<sup>2</sup></span>
+            <span class="author">Tianyu Pang<sup>2,&Dagger;</sup></span>
+        </div>
+
+        <div class="affiliations">
+            <span><sup>1</sup>Xi'an Jiaotong University</span>
+            <span><sup>2</sup>Tencent Hunyuan</span>
+            <span><sup>3</sup>National University of Singapore</span>
+        </div>
+        <p class="author-note">* Equal contribution &nbsp;&nbsp; &para; Project Lead &nbsp;&nbsp; &Dagger; Corresponding author</p>
+
+        <div class="action-buttons">
+            <a href="#" class="btn btn-primary">
+                <i class="fa-solid fa-file-pdf"></i> Paper
+            </a>
+            <a href="https://github.com/haonan3/UniRL" class="btn btn-secondary" target="_blank" rel="noopener">
+                <i class="fa-brands fa-github"></i> Code
+            </a>
+            <a href="#" class="btn btn-secondary">
+                <span class="btn-emoji">&#129303;</span> Models
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SECTION 2: TEASER ==================== -->
+<section id="teaser" class="section section-surface">
+    <div class="container">
+        <h2 class="section-title reveal">Qualitative Comparison</h2>
+        <div class="teaser-figure reveal">
+            <!-- Teaser: composite grid showing 3 prompts x 5 methods -->
+            <!-- Uses images from the paper's case_comparison directory -->
+            <div class="teaser-grid">
+                <div class="teaser-header">
+                    <span></span>
+                    <span>FLUX.1-dev</span>
+                    <span>Flow-GRPO</span>
+                    <span>Flow-CPS</span>
+                    <span>GRPO-Guard</span>
+                    <span class="ours-label">Flow-DPPO + CPS</span>
+                </div>
+                <!-- Row 1: seven green croissants (idx001) -->
+                <div class="teaser-row">
+                    <span class="teaser-prompt">"seven green croissants"</span>
+                    <img src="assets/figs/case_comparison/images/flow_clip-1e-4__step000000_idx001.jpg" alt="FLUX.1-dev baseline" loading="lazy">
+                    <img src="assets/figs/case_comparison/images/flow_clip-1e-4__step001280_idx001.jpg" alt="Flow-GRPO" loading="lazy">
+                    <img src="assets/figs/case_comparison/images/cps_clip-1e-4__step001280_idx001.jpg" alt="Flow-CPS" loading="lazy">
+                    <img src="assets/figs/case_comparison/images/grpo-guard__idx001.jpg" alt="GRPO-Guard" loading="lazy">
+                    <img src="assets/figs/case_comparison/images/cps_kl-adv-1e-5__step001280_idx001.jpg" alt="Flow-DPPO + CPS" loading="lazy">
+                </div>
+                <!-- Row 2: a blue dog on top of three white sheeps (idx024) -->
+                <div class="teaser-row">
+                    <span class="teaser-prompt">"a blue dog on top of three white sheeps behind seven white candles"</span>
+                    <img src="assets/figs/case_comparison/images/flow_clip-1e-4__step000000_idx024.jpg" alt="FLUX.1-dev baseline" loading="lazy">
+                    <img src="assets/figs/case_comparison/images/flow_clip-1e-4__step000960_idx024.jpg" alt="Flow-GRPO" loading="lazy">
+                    <img src="assets/figs/case_comparison/images/cps_clip-1e-4__step000960_idx024.jpg" alt="Flow-CPS" loading="lazy">
+                    <img src="assets/figs/case_comparison/images/grpo-guard__idx024.png" alt="GRPO-Guard" loading="lazy">
+                    <img src="assets/figs/case_comparison/images/cps_kl-adv-1e-5__step000960_idx024.jpg" alt="Flow-DPPO + CPS" loading="lazy">
+                </div>
+                <!-- Row 3: a blue giraffe (idx023) -->
+                <div class="teaser-row">
+                    <span class="teaser-prompt">"a blue giraffe behind seven pink clocks to the right of a elephant"</span>
+                    <img src="assets/figs/case_comparison/images/flow_clip-1e-4__step000000_idx023.jpg" alt="FLUX.1-dev baseline" loading="lazy">
+                    <img src="assets/figs/case_comparison/images/flow_clip-1e-4__step000560_idx023.jpg" alt="Flow-GRPO" loading="lazy">
+                    <img src="assets/figs/case_comparison/images/cps_clip-1e-4__step000560_idx023.jpg" alt="Flow-CPS" loading="lazy">
+                    <img src="assets/figs/case_comparison/images/grpo-guard__idx023.jpg" alt="GRPO-Guard" loading="lazy">
+                    <img src="assets/figs/case_comparison/images/cps_kl-adv-1e-5__step000560_idx023.jpg" alt="Flow-DPPO + CPS" loading="lazy">
+                </div>
+            </div>
+            <p class="figure-caption">
+                <strong>Figure 1.</strong> Qualitative comparison on FLUX.1-dev with GenEval2 prompts. Flow-DPPO achieves competitive compositional accuracy with <em>notably less image quality degradation</em> compared to Flow-GRPO, Flow-CPS, and GRPO-Guard, reflecting superior KL-proximal efficiency.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SECTION 3: ABSTRACT ==================== -->
+<section id="abstract" class="section">
+    <div class="container container-narrow">
+        <h2 class="section-title reveal">Abstract</h2>
+        <div class="abstract-text reveal">
+            <p>
+                Recent work has demonstrated that online reinforcement learning (RL) can substantially improve the quality and alignment of flow matching models for image and video generation. Methods such as Flow-GRPO and CPS cast the denoising process as a Markov Decision Process and apply PPO-style <strong>ratio clipping</strong> to enforce a trust region. However, we argue that ratio clipping is <strong>structurally ill-suited for flow models</strong>: the probability ratio between new and old policies is a noisy, single-sample estimate of the true policy divergence, leading to over-constraining in some regions of the trajectory and under-constraining in others.
+            </p>
+            <p>
+                We propose <strong>Flow-DPPO</strong> (Flow Divergence Proximal Policy Optimization), which replaces ratio clipping with a <strong>divergence proximal constraint</strong>. A key observation is that the per-step policy in flow models is Gaussian, enabling <strong>exact and cheap computation of the KL divergence</strong> between old and new policies. Flow-DPPO employs an <strong>asymmetric divergence mask</strong> that blocks gradient updates only when they simultaneously move away from the trusted region and violate the divergence threshold.
+            </p>
+            <p>
+                Experiments show that Flow-DPPO achieves higher rewards with better KL-proximal efficiency, alleviated catastrophic forgetting, promoted balanced multi-objective optimization, and enabled stable multi-epoch training where ratio clipping degrades.
+            </p>
+        </div>
+
+        <div class="insight-boxes reveal">
+            <div class="insight-box insight-problem">
+                <div class="insight-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <h3>Key Problem</h3>
+                <p>Ratio clipping is a <strong>noisy, single-sample estimate</strong> of policy divergence &mdash; noise has the same magnitude as the signal in high dimensions.</p>
+            </div>
+            <div class="insight-box insight-solution">
+                <div class="insight-icon"><i class="fa-solid fa-lightbulb"></i></div>
+                <h3>Our Solution</h3>
+                <p>Compute <strong>exact KL divergence</strong> leveraging Gaussian policy structure &mdash; deterministic, zero additional cost, theoretically grounded.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SECTION 4: MOTIVATION ==================== -->
+<section id="motivation" class="section section-surface">
+    <div class="container container-narrow">
+        <h2 class="section-title reveal">Why Ratio Clipping Fails in Flow Models</h2>
+
+        <div class="motivation-content reveal">
+            <p>For Gaussian policies in flow models, the log probability ratio decomposes as:</p>
+            <div class="equation-block">
+                $$\log r_t^i(\theta) = \frac{\varepsilon^\top d}{\sigma} - \frac{\|d\|^2}{2\sigma^2}$$
+            </div>
+            <p>where $d = \mu_\theta - \mu_{\theta_{\text{old}}}$ is the policy shift and $\varepsilon \sim \mathcal{N}(0, I)$ is the sampling noise.</p>
+        </div>
+
+        <div class="callout reveal">
+            <div class="callout-icon"><i class="fa-solid fa-microscope"></i></div>
+            <div class="callout-content">
+                <h4>Critical Insight</h4>
+                <p>The first term $\varepsilon^\top d / \sigma$ is a <strong>zero-mean noise</strong> with standard deviation $\|d\|/\sigma$ &mdash; the <em>same order of magnitude</em> as the signal term $\|d\|^2/(2\sigma^2)$. This means clipping decisions are dominated by random noise, not the true policy divergence.</p>
+            </div>
+        </div>
+
+        <div class="comparison-grid reveal">
+            <div class="comparison-card comparison-bad">
+                <h4><i class="fa-solid fa-xmark"></i> Ratio Clipping (PPO-style)</h4>
+                <ul>
+                    <li>Noisy single-sample estimate</li>
+                    <li>Over-constrains some regions</li>
+                    <li>Under-constrains others</li>
+                    <li>Degrades with multi-epoch training</li>
+                </ul>
+            </div>
+            <div class="comparison-card comparison-good">
+                <h4><i class="fa-solid fa-check"></i> Divergence Constraint (Ours)</h4>
+                <ul>
+                    <li>Exact, deterministic KL divergence</li>
+                    <li>Uniform trust region enforcement</li>
+                    <li>Zero additional computational cost</li>
+                    <li>Stable across multiple epochs</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SECTION 5: METHOD ==================== -->
+<section id="method" class="section">
+    <div class="container">
+        <h2 class="section-title reveal">Method</h2>
+
+        <div class="contributions-grid reveal">
+            <div class="contribution-card">
+                <span class="contribution-num">01</span>
+                <div class="contribution-body">
+                    <h3>Exact KL Computation</h3>
+                    <p>For Gaussian per-step policies, the KL divergence is computed in closed form:</p>
+                    <div class="equation-block equation-small">
+                        $$\text{KL}(\pi_{\text{old}} \| \pi_\theta) = \frac{\|\mu_{\theta_{\text{old}}}(x_t, t) - \mu_\theta(x_t, t)\|^2}{2\sigma^2}$$
+                    </div>
+                    <p class="contribution-detail">Both means are already computed during training &mdash; <strong>zero additional cost</strong>.</p>
+                </div>
+            </div>
+            <div class="contribution-card">
+                <span class="contribution-num">02</span>
+                <div class="contribution-body">
+                    <h3>Asymmetric Divergence Mask</h3>
+                    <p>We block gradient updates only when they simultaneously move <em>away</em> from the old policy <strong>and</strong> exceed the divergence threshold:</p>
+                    <div class="equation-block equation-small">
+                        $$M_t^i = \begin{cases} 0 & \text{if } (\hat{A}^i > 0 \wedge r_t^i > 1 \wedge D_t > \delta) \\ 0 & \text{if } (\hat{A}^i < 0 \wedge r_t^i < 1 \wedge D_t > \delta) \\ 1 & \text{otherwise} \end{cases}$$
+                    </div>
+                    <p class="contribution-detail">Corrective updates are <strong>never blocked</strong>, preserving PPO's beneficial asymmetry.</p>
+                </div>
+            </div>
+            <div class="contribution-card">
+                <span class="contribution-num">03</span>
+                <div class="contribution-body">
+                    <h3>Trust Region Guarantee</h3>
+                    <p>The policy improvement bound for flow models guarantees monotonic improvement:</p>
+                    <div class="equation-block equation-small">
+                        $$J(\pi_\theta) - J(\pi_{\theta_{\text{old}}}) \geq L'_{\theta_{\text{old}}}(\pi_\theta) - 2\xi(K\!-\!1)(K\!-\!2)\left[D_{\text{TV}}^{\max}\right]^2$$
+                    </div>
+                    <p class="contribution-detail">KL-constraint upper-bounds TV divergence via Pinsker's inequality.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="objective-box reveal">
+            <h3>Flow-DPPO Objective</h3>
+            <div class="equation-block">
+                $$\mathcal{L}^{\text{Flow-DPPO}}(\theta) = \mathbb{E}\left[\sum_{i}\frac{1}{G}\sum_{t}\frac{1}{T}\left[M_t^i \cdot r_t^i(\theta) \cdot \hat{A}^i - \beta\, \text{KL}(\pi_\theta \| \pi_{\text{ref}})\right]\right]$$
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SECTION 6: RESULTS ==================== -->
+<section id="results" class="section section-surface">
+    <div class="container">
+        <h2 class="section-title reveal">Experimental Results</h2>
+
+        <div class="tabs reveal">
+            <div class="tab-buttons">
+                <button class="tab-btn active" data-tab="main-results">Main Results</button>
+                <button class="tab-btn" data-tab="kl-efficiency">KL Efficiency</button>
+                <button class="tab-btn" data-tab="multi-epoch">Multi-Epoch Training</button>
+            </div>
+
+            <!-- Tab 1: Main Results -->
+            <div class="tab-content active" id="main-results">
+                <p class="tab-description">Performance comparison under multi-reward RL fine-tuning (GDPO with equal weights). <strong>Bold</strong> = best, <span class="second-best">underline</span> = second best.</p>
+                <div class="table-wrapper">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th colspan="4" class="col-group">In-Domain (GenEval2)</th>
+                                <th colspan="3" class="col-group">Out-of-Domain (PickScore)</th>
+                            </tr>
+                            <tr>
+                                <th>Method</th>
+                                <th>GenEval2 &uarr;</th>
+                                <th>CLIP &uarr;</th>
+                                <th>PickScore &uarr;</th>
+                                <th>HPSv2 &uarr;</th>
+                                <th>CLIP &uarr;</th>
+                                <th>PickScore &uarr;</th>
+                                <th>HPSv2 &uarr;</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- SD3.5 block -->
+                            <tr class="schedule-header">
+                                <td colspan="8"><em>SD3.5-medium (pretrained: GenEval2 12.4)</em></td>
+                            </tr>
+                            <tr>
+                                <td>Flow-GRPO</td>
+                                <td>39.9</td><td>0.358</td><td>25.09</td><td>0.399</td>
+                                <td><span class="second-best">0.273</span></td><td>22.07</td><td>0.349</td>
+                            </tr>
+                            <tr>
+                                <td>Flow-CPS</td>
+                                <td>44.6</td><td><span class="second-best">0.359</span></td><td>25.51</td><td>0.407</td>
+                                <td>0.265</td><td>22.08</td><td>0.343</td>
+                            </tr>
+                            <tr>
+                                <td>GRPO-Guard</td>
+                                <td>47.8</td><td>0.353</td><td><span class="second-best">25.64</span></td><td><span class="second-best">0.409</span></td>
+                                <td>0.272</td><td>22.32</td><td>0.354</td>
+                            </tr>
+                            <tr>
+                                <td>Diffusion-NFT</td>
+                                <td>42.5</td><td>0.334</td><td>25.30</td><td>0.394</td>
+                                <td>0.269</td><td><span class="second-best">22.52</span></td><td>0.355</td>
+                            </tr>
+                            <tr class="row-ours">
+                                <td><strong>Flow-DPPO</strong></td>
+                                <td><span class="second-best">48.1</span></td><td>0.345</td><td>25.63</td><td>0.409</td>
+                                <td>0.273</td><td><strong>22.58</strong></td><td><span class="second-best">0.360</span></td>
+                            </tr>
+                            <tr class="row-ours">
+                                <td><strong>Flow-DPPO + CPS</strong></td>
+                                <td><strong>51.6</strong></td><td><strong>0.369</strong></td><td><strong>25.72</strong></td><td><strong>0.415</strong></td>
+                                <td><strong>0.279</strong></td><td>22.51</td><td><strong>0.361</strong></td>
+                            </tr>
+                            <!-- FLUX2-9B block -->
+                            <tr class="schedule-header">
+                                <td colspan="8"><em>FLUX2-klein-base-9B (pretrained: GenEval2 25.4)</em></td>
+                            </tr>
+                            <tr>
+                                <td>Flow-GRPO</td>
+                                <td>46.8</td><td>0.371</td><td>25.61</td><td>0.412</td>
+                                <td>0.277</td><td>22.62</td><td>0.357</td>
+                            </tr>
+                            <tr>
+                                <td>Flow-CPS</td>
+                                <td>47.1</td><td>0.361</td><td>25.70</td><td>0.416</td>
+                                <td>0.276</td><td>22.85</td><td>0.364</td>
+                            </tr>
+                            <tr>
+                                <td>GRPO-Guard</td>
+                                <td>49.0</td><td><span class="second-best">0.375</span></td><td>25.27</td><td>0.411</td>
+                                <td>0.269</td><td>21.99</td><td>0.349</td>
+                            </tr>
+                            <tr>
+                                <td>Diffusion-NFT</td>
+                                <td>47.3</td><td>0.336</td><td>24.87</td><td>0.389</td>
+                                <td>0.274</td><td>22.47</td><td>0.351</td>
+                            </tr>
+                            <tr class="row-ours">
+                                <td><strong>Flow-DPPO</strong></td>
+                                <td><strong>57.7</strong></td><td>0.364</td><td><span class="second-best">25.76</span></td><td><span class="second-best">0.418</span></td>
+                                <td><span class="second-best">0.282</span></td><td><span class="second-best">22.90</span></td><td><span class="second-best">0.368</span></td>
+                            </tr>
+                            <tr class="row-ours">
+                                <td><strong>Flow-DPPO + CPS</strong></td>
+                                <td><span class="second-best">55.2</span></td><td><strong>0.386</strong></td><td><strong>26.15</strong></td><td><strong>0.427</strong></td>
+                                <td><strong>0.287</strong></td><td><strong>22.97</strong></td><td><strong>0.370</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab 2: KL Efficiency -->
+            <div class="tab-content" id="kl-efficiency">
+                <p class="tab-description">Distribution drift from pretrained model (KL divergence &times;10<sup>-3</sup>, lower is better). Flow-DPPO achieves significantly less drift while attaining higher rewards.</p>
+                <div class="table-wrapper">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th colspan="3" class="col-group">FLUX2-9B</th>
+                                <th colspan="2" class="col-group">SD3.5</th>
+                            </tr>
+                            <tr>
+                                <th>Method</th>
+                                <th>Single</th>
+                                <th>Multi</th>
+                                <th>+CFG</th>
+                                <th>Single</th>
+                                <th>Multi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="schedule-header">
+                                <td colspan="6"><em>Flow-SDE schedule</em></td>
+                            </tr>
+                            <tr>
+                                <td>Flow-GRPO</td>
+                                <td>0.77</td><td>0.79</td><td>1.36</td><td>2.34</td><td>3.81</td>
+                            </tr>
+                            <tr>
+                                <td>GRPO-Guard</td>
+                                <td>1.07</td><td>1.01</td><td>1.63</td><td><span class="second-best">2.05</span></td><td>3.33</td>
+                            </tr>
+                            <tr class="row-ours">
+                                <td><strong>Flow-DPPO</strong></td>
+                                <td><strong>0.17</strong></td><td><strong>0.49</strong></td><td><strong>0.51</strong></td><td><strong>1.16</strong></td><td><strong>2.49</strong></td>
+                            </tr>
+                            <tr class="schedule-header">
+                                <td colspan="6"><em>CPS schedule</em></td>
+                            </tr>
+                            <tr>
+                                <td>Flow-CPS</td>
+                                <td><span class="second-best">0.24</span></td><td>1.66</td><td>1.51</td><td>2.41</td><td>3.18</td>
+                            </tr>
+                            <tr class="row-ours">
+                                <td><strong>Flow-DPPO + CPS</strong></td>
+                                <td>0.68</td><td><span class="second-best">0.70</span></td><td><span class="second-best">0.83</span></td><td>1.60</td><td><span class="second-best">2.52</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="kl-highlight">
+                    <span class="kl-number">6.3&times;</span>
+                    <span class="kl-text">better KL efficiency on FLUX2-9B (single-reward: 0.17 vs 1.07)</span>
+                </div>
+            </div>
+
+            <!-- Tab 3: Multi-Epoch Training -->
+            <div class="tab-content" id="multi-epoch">
+                <p class="tab-description">Flow-DPPO enables stable multi-epoch training (sample reuse), critical for expensive generation scenarios like video. Ratio-clipping methods degrade with multiple inner loops.</p>
+                <div class="multi-epoch-grid two-panel">
+                    <div class="panel">
+                        <h4>Flow-SDE Schedule</h4>
+                        <img src="assets/results/sd35_multiepoch_flow_sde_train_geneval2.png" alt="Multi-epoch training on SD3.5 with Flow-SDE schedule">
+                    </div>
+                    <div class="panel">
+                        <h4>CPS Schedule</h4>
+                        <img src="assets/results/sd35_multiepoch_cps_train_geneval2.png" alt="Multi-epoch training on SD3.5 with CPS schedule">
+                    </div>
+                </div>
+                <div class="multi-epoch-configs">
+                    <div class="config-card">
+                        <h4>G64-I1</h4>
+                        <p>Standard: 64 groups, 1 inner loop</p>
+                    </div>
+                    <div class="config-card">
+                        <h4>G32-I2</h4>
+                        <p>Half rollouts, 2 inner loops (saves compute)</p>
+                    </div>
+                    <div class="config-card">
+                        <h4>G64-I2</h4>
+                        <p>Full rollouts, 2&times; training intensity</p>
+                    </div>
+                </div>
+            </div>
+
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SECTION 6b: QUALITATIVE GALLERY ==================== -->
+<section id="gallery" class="section">
+    <div class="container">
+        <h2 class="section-title reveal">Qualitative Comparison</h2>
+        <div class="gallery-figure reveal">
+            <p class="tab-description">Qualitative comparison on FLUX2-9B (single-reward, controlled seeds, same training iteration). Flow-DPPO and Flow-DPPO + CPS retain competitive in-domain performance with less reward hacking while exhibiting notably less catastrophic forgetting on out-of-domain prompts.</p>
+            <!-- Method labels (rows) on the left, prompts (columns) across the top -->
+            <div class="gallery-grid-paper">
+                <!-- Column headers: prompts -->
+                <div class="gallery-col-headers">
+                    <span class="gallery-method-label"></span>
+                    <span class="gallery-col-label col-indomain">In-Domain (GenEval2)</span>
+                    <span class="gallery-col-label col-indomain"></span>
+                    <span class="gallery-col-label col-indomain"></span>
+                    <span class="gallery-col-label col-ood">Out-of-Domain (PickScore)</span>
+                    <span class="gallery-col-label col-ood"></span>
+                    <span class="gallery-col-label col-ood"></span>
+                </div>
+                <!-- Row 1: Baseline -->
+                <div class="gallery-paper-row">
+                    <span class="gallery-method-label">FLUX2-9B</span>
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx003_five-suitcases-and-a-green-koala-under-three-stone-motorcycles/01_Flux2-klein-base-9B.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx026_detailed-prompt-a-small-stone-pig-statue-with-a-rough-textured-surface-sits-quie/01_Flux2-klein-base-9B.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx001_five-colorful-plastic-bicycles-are-arranged-in-a-neat-row-on-a-flat-surface-the-/01_Flux2-klein-base-9B.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx001_a-fruit-stacking-in-the-shape-of-a-dog-stock-image-shutterstock/01_Flux2-klein-base-9B.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx008_magnificent-body-shot-of-a-sun-elf-girl-20-years-old-holding-bow-and-arrow-towar/01_Flux2-klein-base-9B.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx007_people-at-the-barbecue-in-brazil-hd-canon-eos-5d-mark-iv-dslr/01_Flux2-klein-base-9B.jpg" loading="lazy">
+                </div>
+                <!-- Row 2: Flow-GRPO -->
+                <div class="gallery-paper-row">
+                    <span class="gallery-method-label">Flow-GRPO</span>
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx003_five-suitcases-and-a-green-koala-under-three-stone-motorcycles/02_Flow-GRPO.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx026_detailed-prompt-a-small-stone-pig-statue-with-a-rough-textured-surface-sits-quie/02_Flow-GRPO.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx001_five-colorful-plastic-bicycles-are-arranged-in-a-neat-row-on-a-flat-surface-the-/02_Flow-GRPO.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx001_a-fruit-stacking-in-the-shape-of-a-dog-stock-image-shutterstock/02_Flow-GRPO.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx008_magnificent-body-shot-of-a-sun-elf-girl-20-years-old-holding-bow-and-arrow-towar/02_Flow-GRPO.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx007_people-at-the-barbecue-in-brazil-hd-canon-eos-5d-mark-iv-dslr/02_Flow-GRPO.jpg" loading="lazy">
+                </div>
+                <!-- Row 3: Flow-CPS -->
+                <div class="gallery-paper-row">
+                    <span class="gallery-method-label">Flow-CPS</span>
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx003_five-suitcases-and-a-green-koala-under-three-stone-motorcycles/03_Flow-CPS.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx026_detailed-prompt-a-small-stone-pig-statue-with-a-rough-textured-surface-sits-quie/03_Flow-CPS.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx001_five-colorful-plastic-bicycles-are-arranged-in-a-neat-row-on-a-flat-surface-the-/03_Flow-CPS.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx001_a-fruit-stacking-in-the-shape-of-a-dog-stock-image-shutterstock/03_Flow-CPS.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx008_magnificent-body-shot-of-a-sun-elf-girl-20-years-old-holding-bow-and-arrow-towar/03_Flow-CPS.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx007_people-at-the-barbecue-in-brazil-hd-canon-eos-5d-mark-iv-dslr/03_Flow-CPS.jpg" loading="lazy">
+                </div>
+                <!-- Row 4: GRPO-Guard -->
+                <div class="gallery-paper-row">
+                    <span class="gallery-method-label">GRPO-Guard</span>
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx003_five-suitcases-and-a-green-koala-under-three-stone-motorcycles/06_GRPO-Guard.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx026_detailed-prompt-a-small-stone-pig-statue-with-a-rough-textured-surface-sits-quie/06_GRPO-Guard.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx001_five-colorful-plastic-bicycles-are-arranged-in-a-neat-row-on-a-flat-surface-the-/06_GRPO-Guard.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx001_a-fruit-stacking-in-the-shape-of-a-dog-stock-image-shutterstock/06_GRPO-Guard.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx008_magnificent-body-shot-of-a-sun-elf-girl-20-years-old-holding-bow-and-arrow-towar/06_GRPO-Guard.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx007_people-at-the-barbecue-in-brazil-hd-canon-eos-5d-mark-iv-dslr/06_GRPO-Guard.jpg" loading="lazy">
+                </div>
+                <!-- Row 5: Flow-DPPO (ours) -->
+                <div class="gallery-paper-row row-ours-gallery">
+                    <span class="gallery-method-label ours-label">Flow-DPPO</span>
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx003_five-suitcases-and-a-green-koala-under-three-stone-motorcycles/04_Flow-DPPO.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx026_detailed-prompt-a-small-stone-pig-statue-with-a-rough-textured-surface-sits-quie/04_Flow-DPPO.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx001_five-colorful-plastic-bicycles-are-arranged-in-a-neat-row-on-a-flat-surface-the-/04_Flow-DPPO.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx001_a-fruit-stacking-in-the-shape-of-a-dog-stock-image-shutterstock/04_Flow-DPPO.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx008_magnificent-body-shot-of-a-sun-elf-girl-20-years-old-holding-bow-and-arrow-towar/04_Flow-DPPO.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx007_people-at-the-barbecue-in-brazil-hd-canon-eos-5d-mark-iv-dslr/04_Flow-DPPO.jpg" loading="lazy">
+                </div>
+                <!-- Row 6: Flow-DPPO + CPS (ours) -->
+                <div class="gallery-paper-row row-ours-gallery">
+                    <span class="gallery-method-label ours-label">Flow-DPPO + CPS</span>
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx003_five-suitcases-and-a-green-koala-under-three-stone-motorcycles/05_Flow-DPPO + CPS.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx026_detailed-prompt-a-small-stone-pig-statue-with-a-rough-textured-surface-sits-quie/05_Flow-DPPO + CPS.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/geneval2/idx001_five-colorful-plastic-bicycles-are-arranged-in-a-neat-row-on-a-flat-surface-the-/05_Flow-DPPO + CPS.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx001_a-fruit-stacking-in-the-shape-of-a-dog-stock-image-shutterstock/05_Flow-DPPO + CPS.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx008_magnificent-body-shot-of-a-sun-elf-girl-20-years-old-holding-bow-and-arrow-towar/05_Flow-DPPO + CPS.jpg" loading="lazy">
+                    <img src="assets/figs/flux2_geneval2_pickscore_by_category_bundle/Single-reward/pickscore/idx007_people-at-the-barbecue-in-brazil-hd-canon-eos-5d-mark-iv-dslr/05_Flow-DPPO + CPS.jpg" loading="lazy">
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SECTION 7: KEY TAKEAWAYS ==================== -->
+<section id="takeaways" class="section">
+    <div class="container">
+        <h2 class="section-title reveal">Key Takeaways</h2>
+
+        <div class="takeaways-grid reveal">
+            <div class="takeaway-card">
+                <div class="takeaway-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                <div class="takeaway-stat">+17.7%</div>
+                <h3>Higher Reward</h3>
+                <p>Flow-DPPO achieves 57.7 on GenEval2 vs 49.0 for the best baseline (GRPO-Guard) on FLUX2-9B.</p>
+            </div>
+            <div class="takeaway-card">
+                <div class="takeaway-icon"><i class="fa-solid fa-gauge-high"></i></div>
+                <div class="takeaway-stat">6.3&times;</div>
+                <h3>Better KL Efficiency</h3>
+                <p>Significantly less distribution drift from the pretrained model, preserving generation quality.</p>
+            </div>
+            <div class="takeaway-card">
+                <div class="takeaway-icon"><i class="fa-solid fa-rotate"></i></div>
+                <div class="takeaway-stat">Stable</div>
+                <h3>Multi-Epoch Training</h3>
+                <p>Enables efficient sample reuse where ratio clipping degrades &mdash; critical for video generation.</p>
+            </div>
+            <div class="takeaway-card">
+                <div class="takeaway-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+                <div class="takeaway-stat">Balanced</div>
+                <h3>Multi-Objective</h3>
+                <p>Competitive across all metrics simultaneously without reward hacking or catastrophic forgetting.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SECTION 8: BIBTEX & FOOTER ==================== -->
+<section id="bibtex" class="section section-surface">
+    <div class="container container-narrow">
+        <h2 class="section-title reveal">Citation</h2>
+        <div class="bibtex-container reveal">
+            <p class="bibtex-placeholder">BibTeX will be available once the arXiv preprint is released.</p>
+        </div>
+    </div>
+</section>
+
+<footer class="footer">
+    <div class="container">
+        <p>Flow-DPPO &copy; 2026. The website template is adapted from <a href="https://quanhaol.github.io/DiffusionOPD-site/" target="_blank">DiffusionOPD</a>.</p>
+    </div>
+</footer>
+
+<!-- JavaScript -->
+<script src="js/main.js"></script>
+</body>
+</html>
