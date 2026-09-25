@@ -266,6 +266,12 @@ a:hover {
     transform: translateY(-1px);
 }
 
+.btn-logo {
+    width: 1.3em;
+    height: 1.3em;
+    object-fit: contain;
+}
+
 /* ---------- TEASER Section ---------- */
 .teaser-figure {
     background: var(--color-white);
