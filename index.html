@@ -37,7 +37,7 @@
         <div class="authors">
             <span class="author">Bowen Ping<sup>1,2,*</sup></span>
             <span class="author">Xiangxin Zhou<sup>2,*,&para;</sup></span>
-            <span class="author">Penghui Qi<sup>3</sup></span>
+            <span class="author">Penghui Qi<sup>3,4</sup></span>
             <span class="author">Minnan Luo<sup>1,&Dagger;</sup></span>
             <span class="author">Liefeng Bo<sup>2</sup></span>
             <span class="author">Tianyu Pang<sup>2,&Dagger;</sup></span>
@@ -46,7 +46,8 @@
         <div class="affiliations">
             <span><sup>1</sup>Xi'an Jiaotong University</span>
             <span><sup>2</sup>Tencent Hunyuan</span>
-            <span><sup>3</sup>National University of Singapore</span>
+            <span><sup>3</sup>Sea AI Lab</span>
+            <span><sup>4</sup>National University of Singapore</span>
         </div>
         <p class="author-note">* Equal contribution &nbsp;&nbsp; &para; Project Lead &nbsp;&nbsp; &Dagger; Corresponding author</p>
 
@@ -246,8 +247,8 @@
             <div class="contribution-card">
                 <span class="contribution-num">03</span>
                 <div class="contribution-body">
-                    <h3>Trust Region Guarantee</h3>
-                    <p>The policy improvement bound for flow models guarantees monotonic improvement:</p>
+                    <h3>Policy Improvement Bound</h3>
+                    <p>For flow models, the true improvement is lower-bounded by the first-order surrogate minus a penalty that grows with the largest per-step TV divergence:</p>
                     <div class="equation-block equation-small">
                         $$J(\pi_\theta) - J(\pi_{\theta_{\text{old}}}) \geq L'_{\theta_{\text{old}}}(\pi_\theta) - 2\xi(K\!-\!1)(K\!-\!2)\left[D_{\text{TV}}^{\max}\right]^2$$
                     </div>
