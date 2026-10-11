@@ -340,6 +340,23 @@ a:hover {
     line-height: 1.6;
 }
 
+/* ---------- VIDEO Section ---------- */
+.video-figure {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--color-border);
+}
+
+.video-figure video {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--radius);
+    background: #05070a;
+}
+
 /* ---------- ABSTRACT Section ---------- */
 .abstract-text {
     font-size: 1.05rem;
@@ -1034,6 +1051,10 @@ a:hover {
 
     .teaser-grid {
         min-width: 600px;
+    }
+
+    .video-figure {
+        padding: 0.75rem;
     }
 
     .gallery-grid-paper {
