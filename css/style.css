@@ -272,6 +272,79 @@ a:hover {
     object-fit: contain;
 }
 
+/* ---------- Code Frameworks Callout ---------- */
+.code-callout {
+    max-width: 780px;
+    margin: 1.5rem auto 0;
+    padding: 1rem 1.35rem;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--color-border);
+    border-left: 3.5px solid var(--color-primary);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    text-align: left;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--color-text-soft);
+}
+
+.code-callout-lead {
+    margin-bottom: 0.45rem;
+    color: var(--color-text);
+    font-size: 0.9rem;
+}
+
+.code-callout-lead i {
+    color: var(--color-primary);
+    margin-right: 0.35rem;
+}
+
+.code-callout-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0;
+    margin: 0;
+}
+
+.code-callout-list li {
+    position: relative;
+    padding-left: 1rem;
+}
+
+.code-callout-list li::before {
+    content: '\2022';
+    position: absolute;
+    left: 0.15rem;
+    color: var(--color-primary);
+    font-weight: 700;
+}
+
+.code-callout-list strong {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.code-callout-list a strong {
+    color: var(--color-primary);
+}
+
+.code-callout-list a:hover strong {
+    color: var(--color-secondary);
+}
+
+.code-callout code {
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    background: var(--color-surface-alt);
+    color: var(--color-primary);
+    padding: 0.12em 0.4em;
+    border-radius: 4px;
+}
+
 /* ---------- TEASER Section ---------- */
 .teaser-figure {
     background: var(--color-white);
@@ -1042,6 +1115,11 @@ a:hover {
         width: 100%;
         max-width: 250px;
         justify-content: center;
+    }
+
+    .code-callout {
+        padding: 0.85rem 1rem;
+        font-size: 0.82rem;
     }
 
     .insight-boxes,
